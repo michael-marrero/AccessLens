@@ -1,0 +1,3 @@
+-- AccessLens AI seed note:
+-- Use `npm run seed` to create demo auth users and insert deterministic tenant data.
+-- This file is intentionally minimal because profiles reference auth.users.
