@@ -1,8 +1,16 @@
 export type ProfileRole = "admin" | "analyst";
 export type IdentityType = "human" | "service";
 export type FindingSeverity = "low" | "medium" | "high" | "critical";
-export type FindingStatus = "open" | "reviewed" | "resolved";
-export type ReviewAction = "approve" | "revoke" | "investigate";
+export type FindingStatus =
+  | "open"
+  | "reviewed"
+  | "in_review"
+  | "escalated"
+  | "resolved"
+  | "suppressed"
+  | "false_positive";
+export type FindingPriority = "low" | "medium" | "high" | "critical";
+export type ReviewAction = "approve" | "revoke" | "investigate" | "update";
 
 export type Tenant = {
   id: string;
@@ -77,6 +85,14 @@ export type RiskFinding = {
   severity: FindingSeverity;
   score: number;
   status: FindingStatus;
+  assigned_to: string | null;
+  priority: FindingPriority | null;
+  due_at: string | null;
+  disposition: string | null;
+  confidence: number | null;
+  detector_version: string | null;
+  rule_ids: string[] | null;
+  score_breakdown: Record<string, unknown> | null;
   explanation: string | null;
   evidence: Record<string, unknown>;
   created_at: string;
@@ -90,5 +106,8 @@ export type ReviewActionRow = {
   actor_user_id: string;
   action: ReviewAction;
   note: string | null;
+  previous_status: string | null;
+  new_status: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 };

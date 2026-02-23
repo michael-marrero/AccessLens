@@ -1,9 +1,12 @@
 import { z } from "zod";
 
 export const findingsQuerySchema = z.object({
-  status: z.enum(["open", "reviewed", "resolved"]).optional(),
+  status: z
+    .enum(["open", "reviewed", "in_review", "escalated", "resolved", "suppressed", "false_positive"])
+    .optional(),
   severity: z.enum(["low", "medium", "high", "critical"]).optional(),
-  type: z.string().trim().min(1).max(100).optional()
+  type: z.string().trim().min(1).max(100).optional(),
+  identityId: z.string().uuid().optional()
 });
 
 export const findingIdSchema = z.object({

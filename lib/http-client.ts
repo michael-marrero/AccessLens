@@ -25,11 +25,13 @@ export async function authFetch<T = unknown>(input: string, init?: RequestInit):
 
   const payload = (await response.json().catch(() => ({}))) as {
     data?: T;
+    code?: string;
+    message?: string;
     error?: string;
   };
 
   if (!response.ok) {
-    throw new Error(payload.error ?? "Request failed");
+    throw new Error(payload.message ?? payload.error ?? "Request failed");
   }
 
   return payload.data as T;

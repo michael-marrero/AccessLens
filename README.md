@@ -5,7 +5,8 @@ AccessLens AI is a production-style MVP for identity access risk triage and poli
 It provides:
 - Supabase Auth login for analysts/admins
 - Risk findings dashboard with filtering
-- Finding detail page with evidence, AI explanation, recommendation, and action workflow
+- Production-style finding detail analyst workspace (summary, evidence tabs, identity context, timeline, metadata, audit)
+- Action panel for status/assignment/priority/due-date/disposition updates
 - Audit trail for every review action
 - Admin risk recomputation and safe dev-only demo reset
 
@@ -33,11 +34,16 @@ app/
   login/page.tsx
   dashboard/page.tsx
   findings/[id]/page.tsx
+  findings/[id]/loading.tsx
+  findings/[id]/error.tsx
+  findings/[id]/not-found.tsx
   admin/page.tsx
+components/
+  findings/                     # Finding detail workspace UI cards and badges
 lib/
   auth/                         # Bearer token auth + role checks
   supabase/                     # Browser/server Supabase clients
-  findings/                     # Query and action service layer
+  findings/                     # Detail queries, action workflow, validation, formatting
   risk/                         # Rules engine + recompute orchestration
   ai/                           # Provider interface, mock provider, optional OpenAI
   seed/                         # Deterministic demo data seed/reset logic
@@ -61,11 +67,17 @@ Tables (and enums) are created by migration:
 - `entitlements`
 - `identity_entitlements`
 - `access_events`
-- `risk_findings` (`severity`: `low|medium|high|critical`, `status`: `open|reviewed|resolved`)
-- `review_actions` (`action`: `approve|revoke|investigate`)
+- `risk_findings`
+  `severity`: `low|medium|high|critical`
+  `status`: `open|reviewed|in_review|escalated|resolved|suppressed|false_positive`
+  additional fields: `assigned_to`, `priority`, `due_at`, `disposition`, `confidence`, `detector_version`, `rule_ids`, `score_breakdown`
+- `review_actions`
+  `action`: `approve|revoke|investigate|update`
+  additional fields: `previous_status`, `new_status`, `metadata`
 
 Migration file:
 - [`supabase/migrations/20260223154000_init_schema.sql`](/Users/michaelmarrero/Documents/New%20project/AccessLens/supabase/migrations/20260223154000_init_schema.sql)
+- [`supabase/migrations/20260223170000_finding_detail_workflow.sql`](/Users/michaelmarrero/Documents/New%20project/AccessLens/supabase/migrations/20260223170000_finding_detail_workflow.sql)
 
 ## MVP Risk Rules
 
@@ -78,7 +90,7 @@ Implemented in [`lib/risk/rules.ts`](/Users/michaelmarrero/Documents/New%20proje
 
 ## API Endpoints
 
-- `GET /api/findings?status=&severity=&type=`
+- `GET /api/findings?status=&severity=&type=&identityId=`
 - `GET /api/findings/[id]`
 - `POST /api/findings/[id]/action`
 - `POST /api/risk/recompute` (admin only)
@@ -87,7 +99,9 @@ Additional support endpoints:
 - `GET /api/me`
 - `POST /api/admin/seed-reset` (admin only, disabled in production)
 
-All API inputs are validated via Zod schemas in [`lib/schemas.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/lib/schemas.ts).
+All API inputs are validated via Zod schemas in:
+- [`lib/schemas.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/lib/schemas.ts)
+- [`lib/findings/validation.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/lib/findings/validation.ts)
 
 ## Auth + RBAC
 
@@ -98,14 +112,35 @@ All API inputs are validated via Zod schemas in [`lib/schemas.ts`](/Users/michae
   - Findings read/action: `admin`, `analyst`
   - Risk recompute and seed-reset: `admin`
 
-## Audit Trail
+## Finding Detail Workflow
 
-Every finding action inserts a row into `review_actions` and updates finding status:
-- `investigate` -> `reviewed`
-- `approve`/`revoke` -> `resolved`
+`/findings/[id]` is a server-loaded analyst workspace with:
+- Header with breadcrumbs, badges, quick actions
+- Summary card (`why this fired`, recommendation, top signals, score breakdown)
+- Evidence tabs (`events`, `entitlements`, `rule evidence`, `raw json`)
+- Identity context and related open findings
+- Timeline/activity combining events + finding creation + review actions
+- Sticky action panel on desktop
+- Metadata and audit cards in the right column
+
+Core query path:
+- [`lib/findings/queries.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/lib/findings/queries.ts)
+
+## Action + Audit Workflow
+
+`POST /api/findings/[id]/action` supports:
+- status transitions (`OPEN`, `IN_REVIEW`, `ESCALATED`, `RESOLVED`, `SUPPRESSED`, `FALSE_POSITIVE`)
+- assignment changes (`assigned_to`)
+- priority, due date, disposition, and analyst notes
+- validation rules:
+  high/critical findings require note on close/suppress/false-positive
+  invalid transitions are rejected
+  tenant-scoped assignee validation
+- enriched audit rows (`previous_status`, `new_status`, `metadata.changed_fields`)
 
 Core logic:
-- [`lib/findings/action-service.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/lib/findings/action-service.ts)
+- [`lib/findings/actions.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/lib/findings/actions.ts)
+- [`lib/findings/action-route-handler.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/lib/findings/action-route-handler.ts)
 
 ## AI Explanation Module
 
@@ -167,7 +202,10 @@ npm test
 
 Included:
 - Risk rules unit tests: [`tests/risk/rules.test.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/tests/risk/rules.test.ts)
-- Findings action integration tests: [`tests/api/findings-action.test.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/tests/api/findings-action.test.ts)
+- Action endpoint integration tests: [`tests/api/findings-action.test.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/tests/api/findings-action.test.ts)
+- Action validation and transition tests: [`tests/findings/actions.test.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/tests/findings/actions.test.ts)
+- Zod payload validation tests: [`tests/findings/validation.test.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/tests/findings/validation.test.ts)
+- Finding label formatting tests: [`tests/findings/format.test.ts`](/Users/michaelmarrero/Documents/New%20project/AccessLens/tests/findings/format.test.ts)
 
 ## Vercel + Supabase Deployment
 

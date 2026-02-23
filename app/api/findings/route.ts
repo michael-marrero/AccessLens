@@ -18,7 +18,8 @@ export async function GET(request: Request) {
     const parsed = findingsQuerySchema.safeParse({
       status: url.searchParams.get("status") ?? undefined,
       severity: url.searchParams.get("severity") ?? undefined,
-      type: url.searchParams.get("type") ?? undefined
+      type: url.searchParams.get("type") ?? undefined,
+      identityId: url.searchParams.get("identityId") ?? undefined
     });
 
     if (!parsed.success) {

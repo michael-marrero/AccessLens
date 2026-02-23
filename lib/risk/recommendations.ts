@@ -1,7 +1,8 @@
-import type { ReviewAction } from "@/lib/types";
 import { FINDING_TYPES } from "@/lib/risk/constants";
 
-export function defaultRecommendationForFindingType(type: string): ReviewAction {
+export type RecommendationAction = "approve" | "revoke" | "investigate";
+
+export function defaultRecommendationForFindingType(type: string): RecommendationAction {
   switch (type) {
     case FINDING_TYPES.TOXIC_COMBINATION:
     case FINDING_TYPES.SERVICE_INTERACTIVE_LOGIN_ANOMALY:

@@ -11,6 +11,7 @@ export function jsonError(error: unknown, requestId: string, route: string) {
   log("error", {
     route,
     requestId,
+    code: apiError.code,
     message: apiError.message,
     safeMessage: apiError.safeMessage,
     statusCode: apiError.statusCode
@@ -19,6 +20,8 @@ export function jsonError(error: unknown, requestId: string, route: string) {
   return NextResponse.json(
     {
       requestId,
+      code: apiError.code,
+      message: apiError.safeMessage,
       error: apiError.safeMessage
     },
     { status: apiError.statusCode }

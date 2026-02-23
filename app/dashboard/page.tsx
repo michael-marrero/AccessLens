@@ -6,9 +6,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authFetch } from "@/lib/http-client";
 import type { FindingSeverity, FindingStatus } from "@/lib/types";
-import { SeverityBadge } from "@/components/severity-badge";
-import { StatusBadge } from "@/components/status-badge";
+import { SeverityBadge } from "@/components/findings/severity-badge";
+import { StatusBadge } from "@/components/findings/status-badge";
 import { EmptyState } from "@/components/empty-state";
+import { FindingTypeLabel } from "@/components/findings/finding-type-label";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 type FindingRow = {
@@ -30,16 +31,28 @@ export default function DashboardPage() {
   const [status, setStatus] = useState<string>("");
   const [severity, setSeverity] = useState<string>("");
   const [type, setType] = useState<string>("");
+  const [identityId, setIdentityId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
+    const identityCandidate = identityId.trim();
     if (status) params.set("status", status);
     if (severity) params.set("severity", severity);
     if (type.trim()) params.set("type", type.trim());
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(identityCandidate)) {
+      params.set("identityId", identityCandidate);
+    }
     return params.toString();
-  }, [severity, status, type]);
+  }, [identityId, severity, status, type]);
+
+  useEffect(() => {
+    const fromQuery = new URLSearchParams(window.location.search).get("identityId");
+    if (fromQuery) {
+      setIdentityId(fromQuery);
+    }
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -72,7 +85,7 @@ export default function DashboardPage() {
       <div className="card">
         <h2 className="text-lg font-semibold">Risk Findings Dashboard</h2>
         <p className="text-sm text-slate-600">Filter by status, severity, and finding type.</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <div className="mt-4 grid gap-3 md:grid-cols-5">
           <select
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={status}
@@ -80,8 +93,12 @@ export default function DashboardPage() {
           >
             <option value="">All Statuses</option>
             <option value="open">Open</option>
-            <option value="reviewed">Reviewed</option>
+            <option value="in_review">In Review</option>
+            <option value="escalated">Escalated</option>
             <option value="resolved">Resolved</option>
+            <option value="suppressed">Suppressed</option>
+            <option value="false_positive">False Positive</option>
+            <option value="reviewed">Reviewed (legacy)</option>
           </select>
 
           <select
@@ -103,6 +120,13 @@ export default function DashboardPage() {
             onChange={(event) => setType(event.target.value)}
           />
 
+          <input
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Identity ID"
+            value={identityId}
+            onChange={(event) => setIdentityId(event.target.value)}
+          />
+
           <button
             type="button"
             className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
@@ -110,6 +134,7 @@ export default function DashboardPage() {
               setStatus("");
               setSeverity("");
               setType("");
+              setIdentityId("");
             }}
           >
             Clear Filters
@@ -145,7 +170,7 @@ export default function DashboardPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Link className="font-medium" href={`/findings/${finding.id}` as Route}>
-                      {finding.finding_type}
+                      <FindingTypeLabel findingType={finding.finding_type} />
                     </Link>
                   </td>
                   <td className="px-4 py-3">
